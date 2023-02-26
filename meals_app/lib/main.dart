@@ -1,13 +1,75 @@
 import 'package:flutter/material.dart';
+import './dummy_data.dart';
 
+import './models/meal.dart';
 import './screens/category_meals_screen.dart';
 import './screens/categories_screen.dart';
 import './screens/meal_detail_screen.dart';
 import './screens/tabs_screen.dart';
+import './screens/filters_screen.dart';
 
 void main() => runApp(MyApp());
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // TODO Move Filters to a class on its own
+  Map<String, bool> _filters = {
+    'vegan': false,
+    'gluten': false,
+    'lactose': false,
+    'vegetarian': false,
+  };
+
+  List<Meal> _availableMeals = DUMMY_MEALS;
+  List<Meal> _favoritedMeals = [];
+
+  void _setFilters(Map<String, bool> filterData) {
+    setState(() {
+      _filters = filterData;
+
+      _availableMeals = DUMMY_MEALS.where((meal) {
+        if (_filters['gluten'] && !meal.isGlutenFree) {
+          return false;
+        }
+        if (_filters['lactose'] && !meal.isLactoseFree) {
+          return false;
+        }
+        if (_filters['vegan'] && !meal.isVegan) {
+          return false;
+        }
+        if (_filters['vegetarian'] && !meal.isVegetarian) {
+          return false;
+        }
+        return true;
+      }).toList();
+    });
+  }
+
+  // This will rebuild the entire app everytime a meal is favorited
+  void _toggleFavorite(String mealId) {
+    final existingIndex =
+        _favoritedMeals.indexWhere((meal) => meal.id == mealId);
+    if (existingIndex >= 0) {
+      setState(() {
+        _favoritedMeals.removeAt(existingIndex);
+      });
+    } else {
+      setState(() {
+        _favoritedMeals.add(
+          DUMMY_MEALS.firstWhere((meal) => meal.id == mealId),
+        );
+      });
+    }
+  }
+
+  bool _isMealFavorite(String id) {
+    return _favoritedMeals.any((meal) => meal.id == id);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -38,9 +100,13 @@ class MyApp extends StatelessWidget {
       // home: CategoriesScreen(),
       initialRoute: '/',
       routes: {
-        '/': (context) => TabsScreen(),
-        CategoryMealsScreen.routeName: (context) => CategoryMealsScreen(),
-        MealDetailScreen.routeName: (context) => MealDetailScreen(),
+        '/': (context) => TabsScreen(_favoritedMeals),
+        CategoryMealsScreen.routeName: (context) =>
+            CategoryMealsScreen(_availableMeals),
+        MealDetailScreen.routeName: (context) =>
+            MealDetailScreen(_isMealFavorite, _toggleFavorite),
+        FiltersScreen.routeName: (context) =>
+            FiltersScreen(_filters, _setFilters),
       },
       onGenerateRoute: ((settings) {
         // in case a named route is not found, defaults here.
